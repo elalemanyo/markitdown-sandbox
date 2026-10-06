@@ -8,6 +8,8 @@
 # Wrapper-only options (not passed to markitdown):
 #   --offline          run the container without network access
 #   --ui               start the web UI on http://localhost:$MARKITDOWN_PORT instead
+#   -o, --output FILE  handled on the host, since the container cannot write to your
+#                      files: output is written to FILE only if the conversion succeeds
 #
 # Environment:
 #   MARKITDOWN_IMAGE   image to run (default: ghcr.io/elalemanyo/markitdown-sandbox:latest)
@@ -36,6 +38,7 @@ fi
 mounts=("-v" "${PWD}:${PWD}:ro,cached")
 network=()
 args=()
+output=""
 
 add_mount() {
     local spec="$1:$1:ro,cached" m
@@ -45,9 +48,34 @@ add_mount() {
     mounts+=("-v" "$spec")
 }
 
-for arg in "$@"; do
+# True for -o and for --output or any unambiguous abbreviation of it (--o, --out, ...),
+# matching how markitdown's argparse accepts the option.
+is_output_flag() {
+    [[ "$1" == "-o" ]] || [[ ${#1} -ge 3 && "--output" == "$1"* ]]
+}
+
+while (($#)); do
+    arg="$1"
+    shift
     if [[ "$arg" == "--offline" ]]; then
         network=("--network" "none")
+        continue
+    fi
+    if is_output_flag "$arg"; then
+        if (($# == 0)); then
+            echo "markitdown: $arg requires a file name" >&2
+            exit 2
+        fi
+        output="$1"
+        shift
+        continue
+    fi
+    if [[ "$arg" == -o?* ]]; then
+        output="${arg#-o}"
+        continue
+    fi
+    if [[ "$arg" == --*=* ]] && is_output_flag "${arg%%=*}"; then
+        output="${arg#*=}"
         continue
     fi
     if [[ -f "$arg" ]]; then
@@ -59,9 +87,35 @@ for arg in "$@"; do
     args+=("$arg")
 done
 
-exec docker run --rm -i \
-    "${mounts[@]}" \
-    -w "${PWD}" \
-    ${network[@]+"${network[@]}"} \
-    "${hardening[@]}" \
-    "$image" ${args[@]+"${args[@]}"}
+run() {
+    docker run --rm -i \
+        "${mounts[@]}" \
+        -w "${PWD}" \
+        ${network[@]+"${network[@]}"} \
+        "${hardening[@]}" \
+        "$image" ${args[@]+"${args[@]}"}
+}
+
+if [[ -z "$output" ]]; then
+    run
+    exit
+fi
+
+# Write to a temporary file next to the target and move it into place only on success,
+# so a failed conversion never truncates an existing file. markitdown prints its error
+# messages to stdout, so on failure the captured output is shown on stderr instead.
+out_dir="$(dirname "$output")"
+if [[ ! -d "$out_dir" ]]; then
+    echo "markitdown: directory does not exist: $out_dir" >&2
+    exit 1
+fi
+tmp="$(mktemp "${out_dir}/.markitdown.XXXXXX")" || exit 1
+trap 'rm -f "$tmp"' EXIT
+if run >"$tmp"; then
+    chmod "$(printf '%o' $((0666 & ~0$(umask))))" "$tmp"
+    mv -f "$tmp" "$output"
+else
+    status=$?
+    cat "$tmp" >&2
+    exit "$status"
+fi

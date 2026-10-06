@@ -46,23 +46,24 @@ ln -s "$PWD/markitdown" ~/.local/bin/markitdown
 
 ## Usage
 
-From any directory, convert a file and redirect the output:
+From any directory, convert a file and redirect the output, or use `-o`:
 
 ```sh
 markitdown sample.docx > sample.md
-markitdown ~/Desktop/budget.xlsx > budget.md
+markitdown ~/Desktop/budget.xlsx -o budget.md
 markitdown ../reports/user_guide.pdf > user_guide.md
 cat page.html | markitdown -x html > page.md
 ```
 
-Markdown is written to stdout; you redirect it to a file yourself. Relative paths, `../`
-paths and absolute paths all work: the wrapper mounts your current directory, plus the
-directory of each file argument, read-only at the same path inside the container.
+Relative paths, `../` paths and absolute paths all work: the wrapper mounts your current
+directory, plus the directory of each file argument, read-only at the same path inside the
+container.
 
 All MarkItDown options are passed through (`markitdown --help`). The wrapper adds:
 
 | Option / variable | Effect |
 | --- | --- |
+| `-o`, `--output FILE` | Write to `FILE` on the host (the container itself can't write to your disk). The file is only replaced if the conversion succeeds. |
 | `--offline` | Run the container with no network access (`--network none`). |
 | `--ui` | Start the web UI instead (see below). |
 | `MARKITDOWN_IMAGE` | Image to run instead of `ghcr.io/elalemanyo/markitdown-sandbox:latest`. |
@@ -115,7 +116,8 @@ See the [MarkItDown repository](https://github.com/microsoft/markitdown) for the
   and a single HTML page; no extra dependencies).
 - `markitdown` — the wrapper script. It runs the image with the current directory mounted
   read-only, drops all capabilities, disables new privileges, and uses tmpfs for scratch
-  space. Output goes to stdout so you never depend on the container writing to your disk.
+  space. The container only writes to stdout; `-o` is handled by the wrapper on the host,
+  so you never depend on the container writing to your disk.
 
 ## Security notes
 
