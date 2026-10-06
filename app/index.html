@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarkItDown Sandbox</title>
+<!-- Markdown mark on a Catppuccin Mauve tile, inlined so it needs no extra request. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23cba6f7'/%3E%3Cpath transform='translate(-2.03 5.27) scale(0.168)' fill='%2311111b' d='M30 98V30h20l20 25 20-25h20v68H90V59L70 84 50 59v39zm125 0-30-33h20V30h20v35h20z'/%3E%3C/svg%3E">
+<script>
+  // Apply the saved theme before first paint. "auto" (the default) follows the OS setting.
+  (() => {
+    let pref = "auto";
+    try { pref = localStorage.getItem("theme") || "auto"; } catch {}
+    const media = matchMedia("(prefers-color-scheme: light)");
+    window.applyTheme = (choice) => {
+      pref = choice;
+      const resolved = choice === "auto" ? (media.matches ? "light" : "dark") : choice;
+      document.documentElement.dataset.theme = resolved;
+      document.documentElement.dataset.themePref = choice;
+    };
+    media.addEventListener("change", () => { if (pref === "auto") applyTheme("auto"); });
+    applyTheme(pref);
+  })();
+</script>
+<style>
+  /* Catppuccin palettes (Mocha dark, Latte light), mapped onto shadcn/ui-style semantic tokens. */
+  :root {
+    --crust: #11111b; --mantle: #181825; --base: #1e1e2e;
+    --surface0: #313244; --surface1: #45475a; --surface2: #585b70;
+    --overlay0: #6c7086; --overlay1: #7f849c;
+    --subtext0: #a6adc8; --subtext1: #bac2de; --text: #cdd6f4;
+    --mauve: #cba6f7; --lavender: #b4befe; --red: #f38ba8; --green: #a6e3a1;
+
+    --background: var(--crust);
+    --shadow: rgb(0 0 0 / .3);
+    --foreground: var(--text);
+    --card: var(--base);
+    --muted: var(--mantle);
+    --muted-foreground: var(--subtext0);
+    --border: var(--surface0);
+    --input: var(--surface1);
+    --ring: var(--lavender);
+    --primary: var(--mauve);
+    --primary-foreground: var(--crust);
+    --accent: var(--surface0);
+    --destructive: var(--red);
+    --success: var(--green);
+    --radius: 0.625rem;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --crust: #dce0e8; --mantle: #e6e9ef; --base: #eff1f5;
+    --surface0: #ccd0da; --surface1: #bcc0cc; --surface2: #acb0be;
+    --overlay0: #9ca0b0; --overlay1: #8c8fa1;
+    --subtext0: #6c6f85; --subtext1: #5c5f77; --text: #4c4f69;
+    --mauve: #8839ef; --lavender: #7287fd; --red: #d20f39; --green: #40a02b;
+
+    --background: var(--mantle);
+    --muted: var(--mantle);
+    --primary-foreground: var(--base);
+    --shadow: rgb(76 79 105 / .08);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--background); color: var(--foreground);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 48px 16px; }
+  svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor;
+        stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  header { margin-bottom: 24px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .theme-menu { position: relative; }
+  .btn-icon {
+    display: grid; place-items: center; width: 28px; height: 28px; padding: 0;
+    border: 0; border-radius: calc(var(--radius) - 2px);
+    background: transparent; color: var(--muted-foreground); cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .btn-icon:hover, .btn-icon[aria-expanded="true"] { background: var(--accent); color: var(--foreground); }
+  .btn-icon:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  .menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; min-width: 128px; padding: 4px;
+    border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px);
+    background: var(--card); box-shadow: 0 4px 12px var(--shadow), 0 1px 2px var(--shadow);
+  }
+  .menu[hidden] { display: none; }
+  .menu button {
+    display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 8px;
+    border: 0; border-radius: calc(var(--radius) - 4px); background: transparent;
+    font: inherit; font-size: 13px; color: var(--foreground); cursor: pointer; text-align: left;
+  }
+  .menu button svg { width: 14px; height: 14px; color: var(--muted-foreground); }
+  .menu button:hover, .menu button:focus-visible { background: var(--accent); outline: none; }
+  .menu button .check { margin-left: auto; color: var(--primary); visibility: hidden; }
+  .menu button[aria-checked="true"] .check { visibility: visible; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 10px; border: 1px solid var(--border); border-radius: 999px;
+    font-size: 12px; font-weight: 500; color: var(--muted-foreground);
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+  h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.025em; }
+  h1 span { color: var(--primary); }
+  header p { margin: 6px 0 0; color: var(--muted-foreground); }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px);
+    box-shadow: 0 1px 2px var(--shadow);
+  }
+  .card + .card { margin-top: 16px; }
+  .card-header { padding: 20px 20px 0; }
+  .card-title { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .card-description { margin: 2px 0 0; font-size: 13px; color: var(--muted-foreground); }
+  .card-content { padding: 16px 20px 20px; }
+
+  #drop {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 36px 16px; text-align: center; cursor: pointer;
+    border: 1px dashed var(--input); border-radius: var(--radius); background: var(--muted);
+    transition: border-color .15s, background-color .15s;
+  }
+  #drop:hover, #drop.over { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 6%, var(--muted)); }
+  #drop:focus-within { outline: 2px solid var(--ring); outline-offset: 2px; }
+  #drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .drop-icon {
+    display: grid; place-items: center; width: 40px; height: 40px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--card); color: var(--primary);
+  }
+  .drop-title { font-weight: 500; }
+  .drop-title u { text-decoration: none; color: var(--primary); }
+  .drop-hint { font-size: 12px; color: var(--muted-foreground); }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 8px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+    padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--muted); font-size: 12px; font-weight: 500; color: var(--subtext1);
+  }
+  .badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge.error { color: var(--destructive); border-color: color-mix(in srgb, var(--destructive) 40%, transparent); }
+  .badge.success svg { color: var(--success); }
+  .spinner { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px;
+    padding: 0 14px; border-radius: calc(var(--radius) - 2px); border: 1px solid transparent;
+    font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+    transition: background-color .15s, opacity .15s;
+  }
+  .btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  .btn:disabled { opacity: .5; pointer-events: none; }
+  .btn-outline { background: var(--card); border-color: var(--input); color: var(--foreground); }
+  .btn-outline:hover { background: var(--accent); }
+  .btn-primary { background: var(--primary); color: var(--primary-foreground); }
+  .btn-primary:hover { opacity: .9; }
+
+  textarea {
+    display: block; width: 100%; min-height: 420px; margin-top: 16px; padding: 12px 14px; resize: vertical;
+    border: 1px solid var(--input); border-radius: var(--radius); background: var(--mantle);
+    color: var(--foreground); font: 13px/1.6 ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+    tab-size: 4;
+  }
+  textarea::placeholder { color: var(--overlay0); }
+  textarea:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 25%, transparent); }
+  ::selection { background: color-mix(in srgb, var(--overlay1) 35%, transparent); }
+
+  footer { margin-top: 20px; text-align: center; font-size: 12px; color: var(--overlay0); }
+  footer a { color: var(--subtext0); text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="topbar">
+      <div class="eyebrow"><span class="dot"></span>Runs locally · files never leave your machine</div>
+      <div class="theme-menu">
+        <button id="theme-trigger" type="button" class="btn-icon" aria-label="Color scheme"
+                aria-haspopup="menu" aria-expanded="false" aria-controls="theme-options"></button>
+        <div id="theme-options" class="menu" role="menu" aria-label="Color scheme" hidden>
+          <button type="button" role="menuitemradio" data-theme-choice="light" tabindex="-1">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-2.93 1.41-1.41M17.66 6.34l1.41-1.41M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41"/></svg>
+            Light <svg class="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>
+          <button type="button" role="menuitemradio" data-theme-choice="dark" tabindex="-1">
+            <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            Dark <svg class="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>
+          <button type="button" role="menuitemradio" data-theme-choice="auto" tabindex="-1">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Auto <svg class="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <h1>MarkItDown <span>Sandbox</span></h1>
+    <p>Convert documents to clean Markdown inside an isolated container.</p>
+  </header>
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Upload</h2>
+      <p class="card-description">Files are converted in memory and discarded right away.</p>
+    </div>
+    <div class="card-content">
+      <label id="drop">
+        <input id="file" type="file">
+        <span class="drop-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+        </span>
+        <span class="drop-title">Drop a file here or <u>browse</u></span>
+        <span class="drop-hint">PDF, Word, Excel, PowerPoint, HTML, CSV, JSON, XML, EPUB, ZIP, images, audio</span>
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="toolbar">
+        <div>
+          <h2 class="card-title">Markdown</h2>
+          <p class="card-description">Edit before copying or downloading if you like.</p>
+        </div>
+        <div class="actions">
+          <button id="copy" type="button" class="btn btn-outline" disabled>
+            <svg viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            <span>Copy</span>
+          </button>
+          <button id="download" type="button" class="btn btn-primary" disabled>
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+            <span>Download .md</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="card-content">
+      <div id="status" role="status" aria-live="polite"></div>
+      <textarea id="output" spellcheck="false" placeholder="Your Markdown will appear here." aria-label="Markdown output"></textarea>
+    </div>
+  </section>
+
+  <footer>Powered by <a href="https://github.com/microsoft/markitdown" target="_blank" rel="noreferrer">Microsoft MarkItDown</a></footer>
+</main>
+<script>
+  const drop = document.getElementById("drop");
+  const input = document.getElementById("file");
+  const status = document.getElementById("status");
+  const output = document.getElementById("output");
+  const copyBtn = document.getElementById("copy");
+  const downloadBtn = document.getElementById("download");
+  let outputName = "output.md";
+
+  const icons = {
+    loading: '<svg class="spinner" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>',
+    success: '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+    error: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>',
+  };
+
+  // Status badge; the message is set via textContent so file names are never parsed as HTML.
+  function setStatus(kind, text) {
+    status.replaceChildren();
+    if (!kind) return;
+    const badge = document.createElement("span");
+    badge.className = `badge ${kind}`;
+    badge.innerHTML = icons[kind];
+    const label = document.createElement("span");
+    label.textContent = text;
+    badge.append(label);
+    status.append(badge);
+  }
+
+  function setResult(markdown) {
+    output.value = markdown;
+    copyBtn.disabled = downloadBtn.disabled = !markdown;
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  async function convert(file) {
+    if (!file) return;
+    setResult("");
+    setStatus("loading", `Converting ${file.name}…`);
+    outputName = file.name.replace(/\.[^.]+$/, "") + ".md";
+    const started = performance.now();
+    try {
+      const res = await fetch("/convert", {
+        method: "POST",
+        headers: { "X-Filename": encodeURIComponent(file.name) },
+        body: file,
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || res.statusText);
+      setResult(text);
+      const seconds = ((performance.now() - started) / 1000).toFixed(1);
+      setStatus("success", `${file.name} · ${formatSize(file.size)} · ${seconds}s`);
+    } catch (err) {
+      setStatus("error", err.message);
+    }
+  }
+
+  input.addEventListener("change", () => { convert(input.files[0]); input.value = ""; });
+
+  ["dragenter", "dragover"].forEach(type => drop.addEventListener(type, e => {
+    e.preventDefault(); drop.classList.add("over");
+  }));
+  ["dragleave", "drop"].forEach(type => drop.addEventListener(type, () => drop.classList.remove("over")));
+  drop.addEventListener("drop", e => { e.preventDefault(); convert(e.dataTransfer.files[0]); });
+  // Avoid the browser opening files dropped outside the drop zone.
+  window.addEventListener("dragover", e => e.preventDefault());
+  window.addEventListener("drop", e => e.preventDefault());
+
+  const themeTrigger = document.getElementById("theme-trigger");
+  const themeMenu = document.getElementById("theme-options");
+  const themeItems = [...themeMenu.querySelectorAll("[data-theme-choice]")];
+
+  // The trigger shows the icon of the current choice; the menu marks it with a check.
+  function syncTheme() {
+    const pref = document.documentElement.dataset.themePref;
+    themeItems.forEach(item => {
+      const active = item.dataset.themeChoice === pref;
+      item.setAttribute("aria-checked", active);
+      if (active) themeTrigger.replaceChildren(item.querySelector("svg").cloneNode(true));
+    });
+    themeTrigger.title = `Color scheme: ${pref}`;
+  }
+
+  function openMenu() {
+    themeMenu.hidden = false;
+    themeTrigger.setAttribute("aria-expanded", "true");
+    (themeItems.find(i => i.getAttribute("aria-checked") === "true") || themeItems[0]).focus();
+  }
+
+  function closeMenu(restoreFocus = true) {
+    if (themeMenu.hidden) return;
+    themeMenu.hidden = true;
+    themeTrigger.setAttribute("aria-expanded", "false");
+    if (restoreFocus) themeTrigger.focus();
+  }
+
+  themeTrigger.addEventListener("click", () => themeMenu.hidden ? openMenu() : closeMenu());
+  themeTrigger.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); openMenu(); }
+  });
+
+  themeItems.forEach(item => item.addEventListener("click", () => {
+    applyTheme(item.dataset.themeChoice);
+    try { localStorage.setItem("theme", item.dataset.themeChoice); } catch {}
+    syncTheme();
+    closeMenu();
+  }));
+
+  themeMenu.addEventListener("keydown", e => {
+    const index = themeItems.indexOf(document.activeElement);
+    const keys = {
+      ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: themeItems.length - 1,
+    };
+    if (e.key in keys) {
+      e.preventDefault();
+      themeItems[(keys[e.key] + themeItems.length) % themeItems.length].focus();
+    } else if (e.key === "Escape") {
+      closeMenu();
+    } else if (e.key === "Tab") {
+      closeMenu(false);
+    }
+  });
+
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".theme-menu")) closeMenu(false);
+  });
+  syncTheme();
+
+  copyBtn.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(output.value);
+    const label = copyBtn.querySelector("span");
+    label.textContent = "Copied";
+    setTimeout(() => { label.textContent = "Copy"; }, 1500);
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    const url = URL.createObjectURL(new Blob([output.value], { type: "text/markdown" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: outputName });
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+</body>
+</html>

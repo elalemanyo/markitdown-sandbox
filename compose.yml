@@ -1,0 +1,31 @@
+services:
+  markitdown: &markitdown
+    image: ghcr.io/elalemanyo/markitdown-sandbox:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - UID=${UID:-1000}
+        - GID=${GID:-1000}
+    volumes:
+      - ${PWD}:${PWD}:ro,cached
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+      - /run:size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: ${PWD}
+
+  # Web UI: `docker compose up ui`, then open http://localhost:8000
+  ui:
+    <<: *markitdown
+    command: serve
+    volumes: []
+    working_dir: /tmp
+    ports:
+      - "127.0.0.1:${MARKITDOWN_PORT:-8000}:8000"
+    profiles: [ui]

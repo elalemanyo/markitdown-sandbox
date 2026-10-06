@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Converts documents to Markdown using the isolated markitdown-sandbox Docker image.
+# Mounts the current working directory at its own path, and also mounts the directory
+# of any file argument outside it (absolute or ../ paths), so paths resolve inside the
+# container exactly as they do on the host.
+# Strictly enforces read-only mounts, tmpfs, and unprivileged execution.
+#
+# Wrapper-only options (not passed to markitdown):
+#   --offline          run the container without network access
+#   --ui               start the web UI on http://localhost:$MARKITDOWN_PORT instead
+#
+# Environment:
+#   MARKITDOWN_IMAGE   image to run (default: ghcr.io/elalemanyo/markitdown-sandbox:latest)
+#   MARKITDOWN_PORT    host port for --ui (default: 8000)
+
+image="${MARKITDOWN_IMAGE:-ghcr.io/elalemanyo/markitdown-sandbox:latest}"
+hardening=(
+    --read-only
+    --tmpfs "/tmp:size=64m,noexec,nosuid"
+    --tmpfs /run:size=16m
+    --cap-drop ALL
+    --security-opt no-new-privileges:true
+    -u "$(id -u):$(id -g)"
+)
+
+if [[ " $* " == *" --ui "* ]]; then
+    # The UI receives files over HTTP, so no host directory is mounted.
+    port="${MARKITDOWN_PORT:-8000}"
+    echo "MarkItDown UI: http://localhost:${port} (Ctrl+C to stop)" >&2
+    exec docker run --rm \
+        -p "127.0.0.1:${port}:8000" \
+        "${hardening[@]}" \
+        "$image" serve
+fi
+
+mounts=("-v" "${PWD}:${PWD}:ro,cached")
+network=()
+args=()
+
+add_mount() {
+    local spec="$1:$1:ro,cached" m
+    for m in "${mounts[@]}"; do
+        [[ "$m" == "$spec" ]] && return
+    done
+    mounts+=("-v" "$spec")
+}
+
+for arg in "$@"; do
+    if [[ "$arg" == "--offline" ]]; then
+        network=("--network" "none")
+        continue
+    fi
+    if [[ -f "$arg" ]]; then
+        # Resolve to an absolute, symlink-free directory and mount it at the same path.
+        dir="$(cd "$(dirname "$arg")" && pwd -P)"
+        arg="${dir}/$(basename "$arg")"
+        add_mount "$dir"
+    fi
+    args+=("$arg")
+done
+
+exec docker run --rm -i \
+    "${mounts[@]}" \
+    -w "${PWD}" \
+    ${network[@]+"${network[@]}"} \
+    "${hardening[@]}" \
+    "$image" ${args[@]+"${args[@]}"}
