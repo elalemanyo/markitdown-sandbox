@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.13-slim AS builder
+FROM python:3.14-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,7 +11,7 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --prefix=/python -r requirements.txt
 
-FROM python:3.13-slim AS final
+FROM python:3.14-slim AS final
 
 LABEL org.opencontainers.image.source="https://github.com/elalemanyo/markitdown-sandbox" \
       org.opencontainers.image.description="Microsoft MarkItDown in a hardened, read-only container" \
@@ -20,7 +20,7 @@ LABEL org.opencontainers.image.source="https://github.com/elalemanyo/markitdown-
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HOME=/tmp \
-    PYTHONPATH=/python/lib/python3.13/site-packages \
+    PYTHONPATH=/python/lib/python3.14/site-packages \
     PATH="/python/bin:$PATH"
 
 ARG UID=1000
