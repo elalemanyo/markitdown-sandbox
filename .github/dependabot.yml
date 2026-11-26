@@ -14,7 +14,3 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    ignore:
-      # markitdown[all] does not support Python 3.14 yet (youtube-transcript-api wheels).
-      - dependency-name: python
-        update-types: ["version-update:semver-minor", "version-update:semver-major"]
